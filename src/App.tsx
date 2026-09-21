@@ -1,6 +1,179 @@
-import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Check,ChevronDown,Download,FileCode2,Info,Layers3,Plus,Search,ShieldCheck,Sparkles,Upload, X} from 'lucide-react';
-type Dep={id:number;name:string;version:string;license:string;source:string;status:'ok'|'warn'|'risk';note:string};
-const initial:Dep[]=[{id:1,name:'react',version:'18.3.1',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:2,name:'lodash',version:'4.17.21',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:3,name:'chart.js',version:'4.4.4',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:4,name:'highlight.js',version:'11.10.0',license:'BSD-3-Clause',source:'npm',status:'warn',note:'再发布需保留版权声明'}, {id:5,name:'legacy-parser',version:'2.1.0',license:'GPL-3.0',source:'手动',status:'risk',note:'可能与闭源分发冲突'}];
-const colors:Record<string,string>={MIT:'#35b995','BSD-3-Clause':'#6d9ee8','GPL-3.0':'#ec8c75','Apache-2.0':'#b18ee4'};
-export default function App(){const [deps,setDeps]=useState<Dep[]>(()=>{try{return JSON.parse(localStorage.getItem('license-lens')||'')||initial}catch{return initial}});const [query,setQuery]=useState('');const [filter,setFilter]=useState('全部');const [selected,setSelected]=useState(1);const [showAdd,setShowAdd]=useState(false);const [name,setName]=useState('');const [license,setLicense]=useState('MIT');const current=deps.find(d=>d.id===selected);useEffect(()=>localStorage.setItem('license-lens',JSON.stringify(deps)),[deps]);const filtered=useMemo(()=>deps.filter(d=>(filter==='全部'||d.status===filter)&&`${d.name}${d.license}`.toLowerCase().includes(query.toLowerCase())),[deps,filter,query]);const add=()=>{if(!name.trim())return;const id=Date.now();setDeps(ds=>[...ds,{id,name:name.trim(),version:'1.0.0',license,source:'手动',status:license.startsWith('GPL')?'risk':license==='MIT'?'ok':'warn',note:license==='MIT'?'宽松许可，可商用':'请核对分发义务'}]);setSelected(id);setName('');setShowAdd(false)};const exportMd=()=>{const text=`# License Lens\n\n| 依赖 | 版本 | 许可证 | 状态 |\n|---|---|---|---|\n${deps.map(d=>`| ${d.name} | ${d.version} | ${d.license} | ${d.status} |`).join('\n')}`;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/markdown'}));a.download='license-report.md';a.click();URL.revokeObjectURL(a.href)};return <div className="shell"><aside><div className="brand"><div className="brand-icon"><ShieldCheck size={18}/></div><div><b>License Lens</b><small>dependency clarity</small></div></div><div className="nav-title">WORKSPACE</div><button className="nav active"><Layers3 size={16}/>依赖总览</button><button className="nav"><FileCode2 size={16}/>许可证清单 <span>{deps.length}</span></button><button className="nav"><AlertTriangle size={16}/>待处理风险 <span className="red">{deps.filter(d=>d.status==='risk').length}</span></button><div className="aside-bottom"><div className="mini-card"><Sparkles size={16}/><div><b>扫描已更新</b><small>刚刚完成 5 个依赖的分析</small></div></div><div className="user"><div className="avatar">ZL</div><span>Zen Li</span><ChevronDown size={14}/></div></div></aside><main><header><div><div className="crumb">WORKSPACE / <b>PROJECT SCAN</b></div><h1>许可证兼容性分析</h1><p>检查依赖许可，放心发布你的项目。</p></div><div className="head-actions"><button className="outline" onClick={exportMd}><Download size={15}/>导出报告</button><button className="primary" onClick={()=>setShowAdd(true)}><Plus size={16}/>添加依赖</button></div></header><section className="hero"><div><span className="tag">PROJECT · AURORA-WEB</span><h2>发布前，再确认一次。</h2><p>我们扫描了 <b>{deps.length} 个依赖</b>，发现 <b className="warning">{deps.filter(d=>d.status!=='ok').length} 个项目</b>需要你的关注。</p></div><div className="scan-score"><div className="score-ring"><strong>{Math.round(deps.filter(d=>d.status==='ok').length/deps.length*100)}<small>%</small></strong></div><div><span>兼容评分</span><b>良好</b><small>上次扫描 2 分钟前</small></div></div></section><section className="summary"><div><span>全部依赖</span><b>{deps.length}</b><small>+2 本次新增</small></div><div><span>安全许可</span><b className="teal">{deps.filter(d=>d.status==='ok').length}</b><small>可直接分发</small></div><div><span>需要复核</span><b className="orange">{deps.filter(d=>d.status==='warn').length}</b><small>保留声明即可</small></div><div><span>高风险</span><b className="red">{deps.filter(d=>d.status==='risk').length}</b><small>建议替换或隔离</small></div></section><section className="workspace"><div className="table-pane"><div className="pane-head"><div><h2>依赖清单</h2><p>逐项查看许可证义务</p></div><div className="tools"><div className="search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜索依赖"/></div><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="全部">全部状态</option><option value="ok">安全</option><option value="warn">复核</option><option value="risk">高风险</option></select></div></div><div className="table"><div className="tr th"><span>依赖名称</span><span>版本</span><span>许可证</span><span>状态</span></div>{filtered.map(d=><button className={d.id===selected?'tr selected':'tr'} key={d.id} onClick={()=>setSelected(d.id)}><span className="dep-name"><span className="pkg-dot"/> {d.name}</span><span className="muted">{d.version}</span><span><i className="license" style={{color:colors[d.license]||'#888',background:(colors[d.license]||'#888')+'18'}}>{d.license}</i></span><span className={'status '+d.status}>{d.status==='ok'?<Check size={13}/>:<AlertTriangle size={13}/>} {d.status==='ok'?'安全':d.status==='warn'?'复核':'高风险'}</span></button>)}</div></div>{current&&<div className="detail"><div className="detail-head"><div className="detail-icon" style={{background:(colors[current.license]||'#888')+'1c',color:colors[current.license]}}><FileCode2 size={20}/></div><div><span>SELECTED DEPENDENCY</span><h2>{current.name}</h2></div><button className="close" onClick={()=>setSelected(0)}><X size={16}/></button></div><div className="detail-grid"><div><label>版本</label><b>{current.version}</b></div><div><label>来源</label><b>{current.source}</b></div><div><label>许可证</label><b>{current.license}</b></div></div><div className={'finding '+current.status}><div className="finding-icon">{current.status==='ok'?<Check size={16}/>:<AlertTriangle size={16}/>}</div><div><b>{current.status==='ok'?'可以放心使用':current.status==='warn'?'需要保留声明':'存在分发限制'}</b><p>{current.note}。扫描结果基于 package 元数据，请在发布前查看完整许可证文本。</p></div></div><div className="full-license"><div><Info size={15}/><span>许可证摘要</span></div><p>{current.license} 允许在满足其条款的前提下使用和分发代码。详细义务请参考项目仓库中的 LICENSE 文件。</p><button>查看原文 <ChevronDown size={14}/></button></div></div>}</section></main>{showAdd&&<div className="backdrop" onClick={()=>setShowAdd(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>添加依赖</h2><button onClick={()=>setShowAdd(false)}>×</button></div><label>依赖名称<input autoFocus value={name} onChange={e=>setName(e.target.value)} placeholder="例如 date-fns"/></label><label>许可证<select value={license} onChange={e=>setLicense(e.target.value)}><option>MIT</option><option>BSD-3-Clause</option><option>Apache-2.0</option><option>GPL-3.0</option></select></label><button className="primary full" onClick={add}>加入扫描</button></div></div>}</div>}
+import { useEffect, useState } from 'react';
+import {
+  Archive, ChevronDown, FileLock2, Inbox, PackageCheck, Plus, ShieldCheck, Sparkles,
+} from 'lucide-react';
+import type { EvidencePackage } from './archive/types';
+import { handover, loadState, receivePackages, saveState, supersedePackage } from './archive/archive';
+import type { ArchiveState } from './archive/types';
+import { HandoverModal, IntakeModal, RevisionModal } from './page/modals';
+import { IntakesView, PackagesView, PublishableView, ReleasesView, Stats } from './page/views';
+import type { View } from './page/ui';
+
+type Modal =
+  | { kind: 'intake' }
+  | { kind: 'revision'; pkg: EvidencePackage }
+  | { kind: 'handover'; ids: string[] }
+  | null;
+
+const CURRENT_USER = '陈航';
+
+export default function App() {
+  const [state, setState] = useState<ArchiveState>(loadState);
+  const [view, setView] = useState<View>('packages');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [modal, setModal] = useState<Modal>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  // 刷新后组件、指纹、接收批次与移交记录保持一致
+  useEffect(() => { saveState(state); }, [state]);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4200);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const goPackage = (id: string) => { setSelectedId(id); setView('packages'); };
+
+  // -- 接收：校验层裁定 → 数据层归档 ------------------------------------------------
+  const handleAccept = (payload: {
+    component: string; version: string; source: string; fingerprint: string;
+    verifier: string; note: string; receiver: string; missing: string | null;
+  }) => {
+    const { missing, ...input } = payload;
+    setState(s => receivePackages(s, input.receiver, [{ input, missing }], []));
+    setModal(null);
+    setToast(missing ? `已按缺证登记「${input.component}」，补齐前不得发布` : `证据包「${input.component}」已接收归档`);
+  };
+
+  const handleDuplicate = (payload: {
+    component: string; version: string; source: string; fingerprint: string;
+    verifier: string; note: string; receiver: string;
+  }, detail: string, existing: EvidencePackage) => {
+    // 重复接收：包不入库；差异写入一个新的接收批次，已归档批次原样保留
+    setState(s => receivePackages(s, payload.receiver, [], [{
+      receivedAt: new Date().toISOString(),
+      component: payload.component, version: payload.version, source: payload.source,
+      fingerprint: payload.fingerprint.trim().toLowerCase(), verifier: payload.verifier,
+      reason: existing.component === payload.component.trim() ? 'duplicate' : 'conflict',
+      detail, existingPackageId: existing.id,
+    }]));
+    setModal(null);
+    setToast(`重复接收已拒绝，差异记录到新接收批次，在档包 ${existing.id} 不变`);
+  };
+
+  // -- 改证：只能新建包，来源链指向旧包 ---------------------------------------------
+  const handleRevision = (payload: {
+    component: string; version: string; source: string; fingerprint: string;
+    verifier: string; note: string; receiver: string;
+  }, reason: string) => {
+    if (modal?.kind !== 'revision') return;
+    const old = modal.pkg;
+    setState(s => supersedePackage(s, old.id,
+      { ...payload, note: `${reason}${payload.note ? `｜${payload.note}` : ''}` }, null));
+    setModal(null);
+    setToast(`已为「${old.component}」新建改证包，旧包 ${old.id} 与其发布批次保持不变`);
+  };
+
+  // -- 移交：证据不齐整批拒绝；成功即锁定不可覆盖 ------------------------------------
+  const handleHandoverConfirm = (label: string, creator: string) => {
+    if (modal?.kind !== 'handover') return;
+    const result = handover(state, modal.ids, label, creator);
+    if (result.blocked.length > 0) {
+      setToast(`移交被拦截：${result.blocked.map(b => `${b.component}（${b.reason}）`).join('；')}`);
+      return;
+    }
+    setState(result.state);
+    setModal(null);
+    setToast(`发布批次 ${result.batch?.id} 已移交锁定，不可覆盖`);
+  };
+
+  const handoverCandidates = modal?.kind === 'handover'
+    ? modal.ids.map(id => state.packages.find(p => p.id === id)).filter(Boolean) as EvidencePackage[]
+    : [];
+
+  const nav: Array<{ key: View; icon: React.ReactNode; label: string; badge?: number; danger?: boolean }> = [
+    { key: 'packages', icon: <Archive size={16} />, label: '证据包归档', badge: state.packages.length },
+    { key: 'publishable', icon: <PackageCheck size={16} />, label: '可发布清单' },
+    { key: 'intakes', icon: <Inbox size={16} />, label: '接收批次', badge: state.intakeBatches.length },
+    { key: 'releases', icon: <FileLock2 size={16} />, label: '发布批次', badge: state.releaseBatches.length },
+  ];
+
+  return (
+    <div className="shell">
+      <aside>
+        <div className="brand">
+          <div className="brand-icon"><ShieldCheck size={18} /></div>
+          <div><b>Evidence Vault</b><small>OFFLINE ARCHIVE DESK</small></div>
+        </div>
+        <div className="nav-title">归档台</div>
+        {nav.map(n => (
+          <button key={n.key} className={view === n.key ? 'nav active' : 'nav'} onClick={() => setView(n.key)}>
+            {n.icon}{n.label}
+            {n.badge !== undefined && <span>{n.badge}</span>}
+          </button>
+        ))}
+        <div className="aside-bottom">
+          <div className="mini-card">
+            <Sparkles size={16} />
+            <div><b>离线证据库</b><small>指纹唯一 · 批次封存 · 刷新一致</small></div>
+          </div>
+          <div className="user">
+            <div className="avatar">CH</div><span>{CURRENT_USER}</span><ChevronDown size={14} />
+          </div>
+        </div>
+      </aside>
+
+      <main>
+        <header>
+          <div>
+            <div className="crumb">OFFLINE VAULT / <b>{viewTitle(view)}</b></div>
+            <h1>离线证据包归档台</h1>
+            <p>组件、版本、来源、文件指纹与核验人统一归档，移交发布后不可覆盖。</p>
+          </div>
+          <div className="head-actions">
+            <button className="primary" onClick={() => setModal({ kind: 'intake' })}>
+              <Plus size={16} />接收证据包
+            </button>
+          </div>
+        </header>
+
+        <Stats state={state} goto={v => setView(v)} />
+
+        {view === 'packages' && (
+          <PackagesView state={state} selectedId={selectedId} onSelect={setSelectedId}
+            onRevise={pkg => setModal({ kind: 'revision', pkg })}
+            onGoPublish={() => setView('publishable')} />
+        )}
+        {view === 'publishable' && (
+          <PublishableView state={state} onHandover={ids => setModal({ kind: 'handover', ids })} />
+        )}
+        {view === 'intakes' && <IntakesView state={state} onSelectPackage={goPackage} />}
+        {view === 'releases' && <ReleasesView state={state} />}
+
+        <footer className="arch-footer">
+          归档数据层（archive.ts）、接收校验层（intake.ts）与页面（page/）分开实现；数据保存在本机浏览器，刷新后状态一致。
+        </footer>
+      </main>
+
+      {modal?.kind === 'intake' && (
+        <IntakeModal state={state} receiver={CURRENT_USER}
+          onClose={() => setModal(null)} onAccept={handleAccept} onDuplicate={handleDuplicate} />
+      )}
+      {modal?.kind === 'revision' && (
+        <RevisionModal state={state} old={modal.pkg} receiver={CURRENT_USER}
+          onClose={() => setModal(null)} onSubmit={handleRevision} />
+      )}
+      {modal?.kind === 'handover' && (
+        <HandoverModal candidates={handoverCandidates}
+          onClose={() => setModal(null)} onConfirm={handleHandoverConfirm} />
+      )}
+
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+function viewTitle(v: View): string {
+  return { packages: 'EVIDENCE PACKAGES', publishable: 'PUBLISHABLE LIST',
+    intakes: 'INTAKE BATCHES', releases: 'RELEASE BATCHES' }[v];
+}
